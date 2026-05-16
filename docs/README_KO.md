@@ -70,7 +70,7 @@
 
 ## 빠른 시작
 
-**필요:** [Docker](https://docs.docker.com/get-docker/) + Compose, **Git**. **Node.js 불필요**(`frontend/dist`에 빌드된 UI 포함).
+**필요:** [Docker](https://docs.docker.com/get-docker/) + Compose, **Git**. **Node.js 불필요**(프론트엔드 이미지는 GHCR에서 가져옴).
 
 ### macOS / Linux
 
@@ -108,7 +108,7 @@ Git for Windows Bash에서는 위 macOS/Linux 한 줄 명령을 그대로 사용
 | 저장소 | 내용 |
 |--------|------|
 | **[QuantDinger](https://github.com/brokermr810/QuantDinger)** (본 저장소) | 백엔드, Compose, 문서, 프리빌드 Web |
-| **[QuantDinger-Vue](https://github.com/brokermr810/QuantDinger-Vue)** | **Web 프론트 소스**(Vue) — `npm run build`로 `frontend/dist` 교체 |
+| **[QuantDinger-Vue](https://github.com/brokermr810/QuantDinger-Vue)** | **Web 프론트 소스**(Vue) — `v*` 태그가 `ghcr.io/brokermr810/quantdinger-frontend`를 자동 발행 |
 | **[QuantDinger-Mobile](https://github.com/brokermr810/QuantDinger-Mobile)** | **모바일 클라이언트**(오픈소스) |
 
 <h2 id="mcp--agent-게이트웨이">MCP / Agent 게이트웨이</h2>

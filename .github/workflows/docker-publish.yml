@@ -1,19 +1,19 @@
-name: Publish Docker images to GHCR
+name: Publish backend image to GHCR
 
-# Build and publish backend + frontend images to GitHub Container Registry.
+# Build and publish the backend image to GitHub Container Registry. The
+# frontend image is built and published independently by the private
+# QuantDinger-Vue repo (see its release-frontend.yml).
 #
 # Triggers:
 #   - push of a version tag matching `v*` (e.g. v3.0.9) → publishes semver + latest tags
 #   - manual workflow_dispatch → publishes only a short-SHA tag for ad-hoc testing
 #
-# Images are built for linux/amd64 and linux/arm64 via QEMU + buildx. The backend
-# Dockerfile receives BUILD_REGION=global so the GitHub-hosted runner does not
-# detour through Aliyun mirrors.
+# Multi-arch (linux/amd64 + linux/arm64) via QEMU + buildx. BUILD_REGION=global
+# keeps the GitHub-hosted runner off the Aliyun mirror detour.
 #
 # First-time setup: after the first successful run, visit
 #   https://github.com/users/<owner>/packages/container/quantdinger-backend/settings
-#   https://github.com/users/<owner>/packages/container/quantdinger-frontend/settings
-# and set both package visibilities to public if anonymous `docker pull` is desired.
+# and set package visibility to public if anonymous `docker pull` is desired.
 
 on:
   push:
@@ -77,55 +77,4 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
-          provenance: false
-
-  frontend:
-    name: Build & push frontend image
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Verify prebuilt frontend dist
-        run: |
-          if [ ! -d frontend/dist ] || [ -z "$(ls -A frontend/dist 2>/dev/null)" ]; then
-            echo "::error::frontend/dist/ is missing or empty. Sync from QuantDinger-Vue before tagging." && exit 1
-          fi
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract image metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/quantdinger-frontend
-          tags: |
-            type=ref,event=tag
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-            type=sha,format=short
-
-      - name: Build and push frontend
-        uses: docker/build-push-action@v6
-        with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=frontend
-          cache-to: type=gha,mode=max,scope=frontend
           provenance: false

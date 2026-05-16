@@ -70,7 +70,7 @@
 
 ## クイックスタート
 
-**前提:** [Docker](https://docs.docker.com/get-docker/) + Compose、**Git**。**Node.js は不要**（`frontend/dist` にビルド済み UI 同梱）。
+**前提:** [Docker](https://docs.docker.com/get-docker/) + Compose、**Git**。**Node.js は不要**（フロントエンドのイメージは GHCR から取得）。
 
 ### macOS / Linux
 
@@ -108,7 +108,7 @@ Git for Windows の Bash なら、上記 macOS/Linux の 1 行コマンドが使
 | リポジトリ | 内容 |
 |------------|------|
 | **[QuantDinger](https://github.com/brokermr810/QuantDinger)**（本倉庫） | バックエンド、Compose、ドキュメント、プリビルド Web |
-| **[QuantDinger-Vue](https://github.com/brokermr810/QuantDinger-Vue)** | **Web フロントソース**（Vue）— `npm run build` で `frontend/dist` を差し替え |
+| **[QuantDinger-Vue](https://github.com/brokermr810/QuantDinger-Vue)** | **Web フロントソース**（Vue）— `v*` タグで `ghcr.io/brokermr810/quantdinger-frontend` を自動発行 |
 | **[QuantDinger-Mobile](https://github.com/brokermr810/QuantDinger-Mobile)** | **モバイルクライアント**（オープンソース） |
 
 <h2 id="mcp--agent-ゲートウェイ">MCP / Agent ゲートウェイ</h2>

@@ -76,7 +76,7 @@
 
 ## بدء سريع
 
-**المتطلبات:** [Docker](https://docs.docker.com/get-docker/) + Compose و**Git**. **لا حاجة لـ Node.js** (واجهة ويب مُجمَّعة مسبقًا في `frontend/dist`).
+**المتطلبات:** [Docker](https://docs.docker.com/get-docker/) + Compose و**Git**. **لا حاجة لـ Node.js** (واجهة ويب مُجمَّعة مسبقًا في GHCR).
 
 ### macOS / Linux
 
@@ -122,7 +122,7 @@ docker-compose up -d --build
 | المستودع | المحتوى |
 |----------|---------|
 | **[QuantDinger](https://github.com/brokermr810/QuantDinger)** (هذا المستودع) | الخلفية، Compose، الوثائق، ويب مُجمَّع |
-| **[QuantDinger-Vue](https://github.com/brokermr810/QuantDinger-Vue)** | **مصدر الويب** (Vue) — `npm run build` ثم استبدل `frontend/dist` |
+| **[QuantDinger-Vue](https://github.com/brokermr810/QuantDinger-Vue)** | **مصدر الويب** (Vue) — وسم `v*` ينشر تلقائيًا `ghcr.io/brokermr810/quantdinger-frontend` |
 | **[QuantDinger-Mobile](https://github.com/brokermr810/QuantDinger-Mobile)** | **عميل الجوال** (مفتوح المصدر) |
 
 </div>

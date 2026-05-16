@@ -8,8 +8,10 @@
 #   3. docker-compose up -d --build
 #   4. Open http://localhost:8888
 #
-# Frontend image: nginx serving prebuilt files from `frontend/dist` only.
-# Vue source is maintained separately; build there and sync dist into this repo.
+# Backend is built from local source. Frontend is pulled from GHCR — its source
+# lives in the private QuantDinger-Vue repo, which publishes
+# `ghcr.io/<owner>/quantdinger-frontend` on every `v*` tag. Override the tag
+# or image path via FRONTEND_IMAGE / IMAGE_TAG in a project-root `.env`.
 #
 # Note: The container will NOT start if SECRET_KEY is using the default value.
 #       This is a security measure to prevent insecure deployments.
@@ -134,14 +136,10 @@ services:
       retries: 3
 
   # ========================
-  # Frontend (Nginx serving prebuilt dist)
+  # Frontend (Nginx serving prebuilt SPA, pulled from GHCR)
   # ========================
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        RUNTIME_IMAGE: ${IMAGE_PREFIX:-}nginx:1.25-alpine
+    image: ${FRONTEND_IMAGE:-ghcr.io/brokermr810/quantdinger-frontend}:${IMAGE_TAG:-latest}
     container_name: quantdinger-frontend
     restart: unless-stopped
     ports:

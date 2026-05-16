@@ -6,7 +6,7 @@
 |------|---------|-------|
 | Docker & Docker Compose | 20+ | required for the default setup |
 | Python | 3.10+ | only if running backend outside Docker |
-| Node.js | 18+ | only if you maintain the private Vue repo and sync `dist/` here |
+| Node.js | 18+ | only if you maintain the private QuantDinger-Vue repo |
 
 ## Quick Start (Docker)
 
@@ -53,12 +53,9 @@ quantdinger/
 │   ├── run.py                   # App entrypoint
 │   ├── Dockerfile
 │   └── requirements.txt
-├── frontend/
-│   ├── dist/                    # Pre-built SPA (sync from private Vue repo)
-│   ├── Dockerfile               # Nginx image; copies `frontend/dist` only
-│   └── nginx.conf
 ├── docs/                        # Changelog, architecture notes
-├── docker-compose.yml
+├── docker-compose.yml           # frontend service pulls ghcr.io/.../quantdinger-frontend
+├── docker-compose.ghcr.yml      # both services pulled from GHCR (zero-clone deploy)
 └── README.md
 ```
 
@@ -76,36 +73,27 @@ The dev server starts on `http://localhost:5000` with auto-reload.
 
 ## Frontend (private Vue repository)
 
-The open-source tree **does not** contain Vue source. Maintain the UI in your separate repo, then ship static files here:
+The open-source tree **does not** contain Vue source or build artefacts. UI work happens in the private **QuantDinger-Vue** repo. Releases are fully automated:
 
 ```bash
-# In your private Vue repo
-npm install
-npm run build
+# In QuantDinger-Vue
+git tag v3.0.9
+git push origin v3.0.9
 ```
 
-Copy the build into this repository (replace the path with your clone):
+The `release-frontend.yml` workflow there builds `linux/amd64 + linux/arm64` images via buildx and pushes them to `ghcr.io/brokermr810/quantdinger-frontend`, tagged with the semver value, `{major}.{minor}`, and `latest`.
+
+This repo's `docker-compose.yml` (and `docker-compose.ghcr.yml`) references that image by default. To pin a version while testing:
 
 ```bash
-# Linux/macOS — helper script (requires QUANTDINGER_VUE_SRC)
-export QUANTDINGER_VUE_SRC=/path/to/private-vue-repo
-./scripts/build-frontend.sh
+# Project-root .env (sibling of docker-compose.yml)
+echo "IMAGE_TAG=v3.0.9" >> .env
 
-# Or manual sync
-rsync -a --delete /path/to/private-vue-repo/dist/ frontend/dist/
-```
-
-```powershell
-# Windows (PowerShell)
-robocopy C:\path\to\private-vue-repo\dist frontend\dist /MIR
-```
-
-Then rebuild or start the stack as usual:
-
-```bash
-docker compose build frontend
+docker compose pull frontend
 docker compose up -d frontend
 ```
+
+The container reads `BACKEND_URL` at start time and substitutes it into the nginx config via the official `nginx:alpine` envsubst hook, so the same image works for compose, Railway, and direct `docker run`.
 
 ## Adding a New Data Source
 

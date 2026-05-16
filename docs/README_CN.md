@@ -82,7 +82,7 @@
 
 > **三步：`git clone → 写一个密钥 → docker compose up`。** macOS/Linux 就是**一行命令**。下文 90% 都是参考详情，新手不用全读。
 
-**前置条件：** 已安装带 Compose 的 [Docker](https://docs.docker.com/get-docker/)（Windows/macOS 用 Docker Desktop，Linux 用 Docker Engine + Compose 插件）以及 **Git**。**不需要安装 Node.js**（仓库已含 `frontend/dist` 预构建前端）。
+**前置条件：** 已安装带 Compose 的 [Docker](https://docs.docker.com/get-docker/)（Windows/macOS 用 Docker Desktop，Linux 用 Docker Engine + Compose 插件）以及 **Git**。**不需要安装 Node.js** —— 前端镜像直接从 GHCR 拉取。
 
 ### macOS / Linux（Bash）—— 一行命令
 
@@ -123,15 +123,15 @@ docker-compose up -d --build
 
 ## 相关仓库
 
-本单仓提供 **后端**、**Docker Compose** 部署栈、**文档**，以及 `frontend/dist` 中的 **预构建 Web 前端**。若要改 UI 源码或使用移动端，请配合下列仓库：
+本仓提供 **后端**、**Docker Compose** 部署栈与 **文档**；前端镜像由 Vue 仓独立发布到 GHCR。如需改 UI 源码或使用移动端，请配合：
 
 | 仓库 | 说明 |
 |------|------|
-| **[QuantDinger](https://github.com/brokermr810/QuantDinger)**（本仓库） | 后端（Flask/Python）、部署、文档、预构建 Web 资源 |
-| **[QuantDinger-Vue](https://github.com/brokermr810/QuantDinger-Vue)** | **Web 前端源码**（Vue）—主题、二次开发、`npm run build` 后替换 `frontend/dist` |
+| **[QuantDinger](https://github.com/brokermr810/QuantDinger)**（本仓库） | 后端（Flask/Python）、Compose 部署栈、文档 |
+| **[QuantDinger-Vue](https://github.com/brokermr810/QuantDinger-Vue)** | **Web 前端源码**（Vue）—— 打 `v*` tag 即自动构建并推送 `ghcr.io/brokermr810/quantdinger-frontend` |
 | **[QuantDinger-Mobile](https://github.com/brokermr810/QuantDinger-Mobile)** | **开源移动端**，连接你自托管或 SaaS 的同一套后端 |
 
-**说明：** 只有从 **QuantDinger-Vue** 自行构建 Web 时才需要 Node.js；默认 Docker 快速上手不需要。
+**说明：** 只有想从 **QuantDinger-Vue** 自行构建 Web 时才需要 Node.js；默认 Docker 快速上手会直接拉取已发布镜像。
 
 <h2 id="mcp-agent-gateway">用 AI Agent 接入（Cursor / Claude Code / Codex / MCP）</h2>
 
@@ -208,7 +208,7 @@ QuantDinger 是**可自托管**的量化操作系统：**AI 辅助研究**、**P
 
 ## 架构
 
-**栈结构：** Nginx 提供预构建 Vue（`frontend/dist`）；**Flask** 承载策略/AI/计费等服务；**PostgreSQL** 存状态；**Redis** 支撑 Worker。交易所、经纪商、大模型与支付通过环境变量接入。加密货币**行情**与**下单执行**路径分层设计。
+**栈结构：** Nginx 提供预构建 Vue（镜像 `ghcr.io/brokermr810/quantdinger-frontend`）；**Flask** 承载策略/AI/计费等服务；**PostgreSQL** 存状态；**Redis** 支撑 Worker。交易所、经纪商、大模型与支付通过环境变量接入。加密货币**行情**与**下单执行**路径分层设计。
 
 **运行时（简述）：** 数据进入回测/策略引擎 → 实盘运行时产生下单意图 → 交易所适配器执行；挂单派发与行情采集解耦。
 
@@ -272,7 +272,7 @@ flowchart LR
 
 > **已经按 [两分钟试用](#两分钟试用) 跑起来了？** 直接跳过本节——只是把同样的流程拆成给首次部署、想搞懂每个配置项的人看的逐步清单。
 
-下文对应常见「本地部署」顺序：**准备宿主机 → 拉代码 → 配密钥 → 起栈 → 自检 → 加固 → 可选接入大模型**。**不需要 Node.js**：前端已预构建在 `frontend/dist`，由 `frontend` 容器内 Nginx 提供。
+下文对应常见「本地部署」顺序：**准备宿主机 → 拉代码 → 配密钥 → 起栈 → 自检 → 加固 → 可选接入大模型**。**不需要 Node.js**：`frontend` 服务直接从 GHCR 拉取 `ghcr.io/brokermr810/quantdinger-frontend` 并由 Nginx 提供，无需本地构建。
 
 ### 环境准备
 

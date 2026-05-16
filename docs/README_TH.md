@@ -70,7 +70,7 @@
 
 ## เริ่มต้นอย่างรวดเร็ว
 
-**สิ่งที่ต้องมี:** [Docker](https://docs.docker.com/get-docker/) + Compose และ **Git** **ไม่ต้องใช้ Node.js** (UI สำเร็จรูปใน `frontend/dist`)
+**สิ่งที่ต้องมี:** [Docker](https://docs.docker.com/get-docker/) + Compose และ **Git** **ไม่ต้องใช้ Node.js** (อิมเมจฟรอนต์เอนด์ถูกดึงจาก GHCR)
 
 ### macOS / Linux
 
@@ -108,7 +108,7 @@ docker-compose up -d --build
 | ที่เก็บ | เนื้อหา |
 |---------|---------|
 | **[QuantDinger](https://github.com/brokermr810/QuantDinger)** (repo นี้) | แบ็กเอนด์ Compose เอกสาร Web สำเร็จรูป |
-| **[QuantDinger-Vue](https://github.com/brokermr810/QuantDinger-Vue)** | **ซอร์สเว็บฟรอนต์** (Vue) — รัน `npm run build` แล้วแทนที่ `frontend/dist` |
+| **[QuantDinger-Vue](https://github.com/brokermr810/QuantDinger-Vue)** | **ซอร์สเว็บฟรอนต์** (Vue) — แท็ก `v*` จะเผยแพร่ `ghcr.io/brokermr810/quantdinger-frontend` อัตโนมัติ |
 | **[QuantDinger-Mobile](https://github.com/brokermr810/QuantDinger-Mobile)** | **ไคลเอนต์มือถือ** (โอเพนซอร์ส) |
 
 <h2 id="mcp--agent-gateway">MCP / Agent Gateway</h2>
