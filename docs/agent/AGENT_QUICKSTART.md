@@ -145,6 +145,15 @@ signals — those shapes will fail validation in `_simulate_trading`.
 | 2-way (recommended) | `df['buy']`, `df['sell']` (boolean Series) | Most strategies — simple long-only or `trade_direction='both'` |
 | 4-way (advanced) | `df['open_long']`, `df['close_long']`, `df['open_short']`, `df['close_short']` (boolean Series) | When you need explicit control over each leg |
 
+**`trade_direction='both'` mapping (must match backtest):**
+
+| Column | Meaning at execution |
+|--------|----------------------|
+| `buy=True` | `open_long`; close short first if short |
+| `sell=True` | `open_short`; close long first if long |
+
+Do **not** assume `buy` is an independent `close_short` signal. Merging short tp/sl into `buy` means flip-long under `both`. See `docs/STRATEGY_DEV_GUIDE.md` §3.3.1 and §11.7 (avoid duplicate indicator exits + `trailingEnabled`).
+
 Minimal working SMA crossover:
 
 ```python

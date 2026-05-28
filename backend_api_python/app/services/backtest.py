@@ -784,11 +784,13 @@ class BacktestService:
         funding_interval_seconds = int(funding_interval_hours * 3600)
         total_funding_paid = 0.0
 
-        lev = max(int(leverage or 1), 1)
-        stop_loss_pct_eff = stop_loss_pct / lev if stop_loss_pct > 0 else 0
-        take_profit_pct_eff = take_profit_pct / lev if take_profit_pct > 0 else 0
-        trailing_pct_eff = trailing_pct / lev if trailing_pct > 0 else 0
-        trailing_activation_pct_eff = trailing_activation_pct / lev if trailing_activation_pct > 0 else 0
+        # Risk percentages are the underlying's % price move directly.
+        # Leverage only affects PnL magnitude and liquidation — it does NOT
+        # scale trigger thresholds.
+        stop_loss_pct_eff = stop_loss_pct if stop_loss_pct > 0 else 0
+        take_profit_pct_eff = take_profit_pct if take_profit_pct > 0 else 0
+        trailing_pct_eff = trailing_pct if trailing_pct > 0 else 0
+        trailing_activation_pct_eff = trailing_activation_pct if trailing_activation_pct > 0 else 0
         
         # If trailing stop enabled but no activation threshold set, use take profit threshold
         if trailing_enabled and trailing_pct_eff > 0:
@@ -2169,142 +2171,14 @@ class BacktestService:
         add_long = pd.Series(False, index=df.index)
         add_short = pd.Series(False, index=df.index)
 
-        class ScriptBar(dict):
-            def __getattr__(self, name: str) -> Any:
-                try:
-                    return self[name]
-                except KeyError as exc:
-                    raise AttributeError(name) from exc
-
-        class ScriptPosition(dict):
-            def __init__(self):
-                super().__init__()
-                self.clear_position()
-
-            def __getattr__(self, name: str) -> Any:
-                try:
-                    return self[name]
-                except KeyError as exc:
-                    raise AttributeError(name) from exc
-
-            def __bool__(self) -> bool:
-                return bool(self.get('side')) and float(self.get('size') or 0) > 0
-
-            def __int__(self) -> int:
-                return int(self.get('direction') or 0)
-
-            def __float__(self) -> float:
-                return float(self.get('direction') or 0)
-
-            def __eq__(self, other: Any) -> bool:
-                try:
-                    return int(self) == int(other)
-                except Exception:
-                    return dict.__eq__(self, other)
-
-            def __lt__(self, other: Any) -> bool:
-                return int(self) < int(other)
-
-            def __le__(self, other: Any) -> bool:
-                return int(self) <= int(other)
-
-            def __gt__(self, other: Any) -> bool:
-                return int(self) > int(other)
-
-            def __ge__(self, other: Any) -> bool:
-                return int(self) >= int(other)
-
-            def clear_position(self) -> None:
-                self.clear()
-                self.update({
-                    'side': '',
-                    'size': 0.0,
-                    'entry_price': 0.0,
-                    'direction': 0,
-                    'amount': 0.0,
-                })
-
-            def open_position(self, side: str, entry_price: float, amount: float) -> None:
-                direction = 1 if side == 'long' else (-1 if side == 'short' else 0)
-                size = float(amount or 0.0)
-                price = float(entry_price or 0.0)
-                self.clear()
-                self.update({
-                    'side': side,
-                    'size': size,
-                    'entry_price': price,
-                    'direction': direction,
-                    'amount': size,
-                })
-
-            def add_position(self, entry_price: float, amount: float) -> None:
-                extra = float(amount or 0.0)
-                if extra <= 0:
-                    return
-                current_size = float(self.get('size') or 0.0)
-                current_price = float(self.get('entry_price') or 0.0)
-                next_size = current_size + extra
-                next_price = float(entry_price or current_price or 0.0)
-                if current_size > 0 and current_price > 0 and next_size > 0:
-                    next_price = ((current_price * current_size) + (float(entry_price or current_price) * extra)) / next_size
-                self['size'] = next_size
-                self['amount'] = next_size
-                self['entry_price'] = next_price
-
-            def reduce_position(self, amount: float) -> None:
-                """Reduce position size by *amount*. Clears to flat when size reaches zero."""
-                reduce = float(amount or 0.0)
-                if reduce <= 0:
-                    return
-                current_size = float(self.get('size') or 0.0)
-                remaining = current_size - reduce
-                if remaining <= 1e-12:
-                    self.clear_position()
-                else:
-                    self['size'] = remaining
-                    self['amount'] = remaining
-
-        class ScriptBacktestContext:
-            def __init__(self, bars_df: pd.DataFrame, initial_balance: float):
-                self._bars_df = bars_df
-                self._params: Dict[str, Any] = {}
-                self._orders: List[Dict[str, Any]] = []
-                self._logs: List[str] = []
-                self.current_index = -1
-                self.position = ScriptPosition()
-                self.balance = float(initial_balance)
-                self.equity = float(initial_balance)
-
-            def param(self, name: str, default: Any = None) -> Any:
-                if name not in self._params:
-                    self._params[name] = default
-                return self._params[name]
-
-            def bars(self, n: int = 1):
-                start = max(0, self.current_index - int(n) + 1)
-                out = []
-                for _, row in self._bars_df.iloc[start:self.current_index + 1].iterrows():
-                    out.append(ScriptBar(
-                        open=float(row.get('open') or 0),
-                        high=float(row.get('high') or 0),
-                        low=float(row.get('low') or 0),
-                        close=float(row.get('close') or 0),
-                        volume=float(row.get('volume') or 0),
-                        timestamp=row.get('time')
-                    ))
-                return out
-
-            def log(self, message: Any):
-                self._logs.append(str(message))
-
-            def buy(self, price: Any = None, amount: Any = None):
-                self._orders.append({'action': 'buy', 'price': price, 'amount': amount})
-
-            def sell(self, price: Any = None, amount: Any = None):
-                self._orders.append({'action': 'sell', 'price': price, 'amount': amount})
-
-            def close_position(self):
-                self._orders.append({'action': 'close'})
+        # Share the live-trading hedge-aware ctx implementation so the two
+        # paths can't drift apart (P0-1, May 2026). ScriptBar is still needed
+        # locally to inject the per-bar payload.
+        from app.services.strategy_script_runtime import (
+            ScriptBar,
+            ScriptPosition,
+            StrategyScriptContext as ScriptBacktestContext,
+        )
 
         try:
             from app.utils.safe_exec import build_safe_builtins, safe_exec_with_validation
@@ -2351,41 +2225,71 @@ class BacktestService:
 
                 for order in ctx._orders:
                     action = str(order.get('action') or '').lower()
+                    intent = str(order.get('intent') or 'auto').lower()
                     order_price = float(order.get('price') or bar['close'] or 0)
                     order_amount = float(order.get('amount') or 0)
+
                     if action == 'close':
-                        if ctx.position > 0:
+                        if ctx.position.has_long():
                             close_long.iloc[i] = True
-                            ctx.position.clear_position()
-                        elif ctx.position < 0:
+                            ctx.position.close_long()
+                        if ctx.position.has_short():
                             close_short.iloc[i] = True
-                            ctx.position.clear_position()
+                            ctx.position.close_short()
+                        continue
+
+                    # Explicit hedge intents — ctx.close_long / close_short /
+                    # open_long / open_short. Keep both legs independent.
+                    if intent == 'close_long':
+                        if ctx.position.has_long():
+                            close_long.iloc[i] = True
+                            ctx.position.reduce_long(order_amount or ctx.position.long_size)
+                        continue
+                    if intent == 'close_short':
+                        if ctx.position.has_short():
+                            close_short.iloc[i] = True
+                            ctx.position.reduce_short(order_amount or ctx.position.short_size)
+                        continue
+                    if intent == 'open_long':
+                        if trade_direction in ('long', 'both'):
+                            if ctx.position.has_long():
+                                add_long.iloc[i] = True
+                            else:
+                                open_long.iloc[i] = True
+                            ctx.position.open_long(order_price, order_amount)
+                        continue
+                    if intent == 'open_short':
+                        if trade_direction in ('short', 'both'):
+                            if ctx.position.has_short():
+                                add_short.iloc[i] = True
+                            else:
+                                open_short.iloc[i] = True
+                            ctx.position.open_short(order_price, order_amount)
                         continue
 
                     if action == 'buy':
-                        if ctx.position < 0:
+                        # Auto intent: cover short leg first, otherwise stack long.
+                        if ctx.position.has_short():
                             close_short.iloc[i] = True
-                            ctx.position.clear_position()
+                            ctx.position.close_short()
                         if trade_direction in ('long', 'both'):
-                            if ctx.position == 0:
-                                open_long.iloc[i] = True
-                                ctx.position.open_position('long', order_price, order_amount)
-                            else:
+                            if ctx.position.has_long():
                                 add_long.iloc[i] = True
-                                ctx.position.add_position(order_price, order_amount)
+                            else:
+                                open_long.iloc[i] = True
+                            ctx.position.open_long(order_price, order_amount)
                         continue
 
                     if action == 'sell':
-                        if ctx.position > 0:
+                        if ctx.position.has_long():
                             close_long.iloc[i] = True
-                            ctx.position.clear_position()
+                            ctx.position.close_long()
                         if trade_direction in ('short', 'both'):
-                            if ctx.position == 0:
-                                open_short.iloc[i] = True
-                                ctx.position.open_position('short', order_price, order_amount)
-                            else:
+                            if ctx.position.has_short():
                                 add_short.iloc[i] = True
-                                ctx.position.add_position(order_price, order_amount)
+                            else:
+                                open_short.iloc[i] = True
+                            ctx.position.open_short(order_price, order_amount)
 
             return {
                 'open_long': open_long,
@@ -2589,12 +2493,12 @@ class BacktestService:
         trailing_pct = float(trailing_cfg.get('pct') or 0.0)
         trailing_activation_pct = float(trailing_cfg.get('activationPct') or 0.0)
 
-        # Risk percentages are defined on margin PnL; convert to price move thresholds by leverage.
-        lev = max(int(leverage or 1), 1)
-        stop_loss_pct_eff = stop_loss_pct / lev
-        take_profit_pct_eff = take_profit_pct / lev
-        trailing_pct_eff = trailing_pct / lev
-        trailing_activation_pct_eff = trailing_activation_pct / lev
+        # Risk percentages are the underlying's % price move directly.
+        # Leverage only affects PnL magnitude / liquidation, NOT trigger thresholds.
+        stop_loss_pct_eff = stop_loss_pct
+        take_profit_pct_eff = take_profit_pct
+        trailing_pct_eff = trailing_pct
+        trailing_activation_pct_eff = trailing_activation_pct
 
         # Conflict rule (TP vs trailing):
         # - If trailing is enabled, it takes precedence.
@@ -2603,14 +2507,6 @@ class BacktestService:
         if trailing_enabled and trailing_pct_eff > 0:
             if trailing_activation_pct_eff <= 0 and take_profit_pct_eff > 0:
                 trailing_activation_pct_eff = take_profit_pct_eff
-
-        # IMPORTANT: risk percentages are defined on margin PnL (user expectation):
-        # e.g. 10x leverage + 5% SL means ~0.5% adverse price move.
-        lev = max(int(leverage or 1), 1)
-        stop_loss_pct_eff = stop_loss_pct / lev
-        take_profit_pct_eff = take_profit_pct / lev
-        trailing_pct_eff = trailing_pct / lev
-        trailing_activation_pct_eff = trailing_activation_pct / lev
 
         pos_cfg = cfg.get('position') or {}
         entry_pct_cfg = float(pos_cfg.get('entryPct') or 1.0)  # expected 0~1
@@ -2650,12 +2546,11 @@ class BacktestService:
         adverse_reduce_size_pct = float(adverse_reduce_cfg.get('sizePct') or 0.0)
         adverse_reduce_max_times = int(adverse_reduce_cfg.get('maxTimes') or 0)
 
-        # Trigger pct as post-leverage margin threshold: divide by leverage for price trigger
-        # e.g. 10x + 5% trigger means ~0.5% price movement
-        trend_add_step_pct_eff = trend_add_step_pct / lev
-        dca_add_step_pct_eff = dca_add_step_pct / lev
-        trend_reduce_step_pct_eff = trend_reduce_step_pct / lev
-        adverse_reduce_step_pct_eff = adverse_reduce_step_pct / lev
+        # Step percentages are the underlying's % price move directly (no leverage scaling).
+        trend_add_step_pct_eff = trend_add_step_pct
+        dca_add_step_pct_eff = dca_add_step_pct
+        trend_reduce_step_pct_eff = trend_reduce_step_pct
+        adverse_reduce_step_pct_eff = adverse_reduce_step_pct
 
         # State: used for trailing exits and scale-in/scale-out anchor levels
         highest_since_entry = None

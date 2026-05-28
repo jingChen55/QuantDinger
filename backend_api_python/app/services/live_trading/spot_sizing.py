@@ -197,6 +197,102 @@ def get_spot_free_base_balance(client: BaseRestClient, *, symbol: str) -> float:
     return 0.0
 
 
+def fetch_spot_last_price(client: BaseRestClient, *, symbol: str) -> float:
+    """Best-effort last price for USDT -> base conversion (supports Bitget ``lastPr``)."""
+    if not hasattr(client, "get_ticker"):
+        return 0.0
+    try:
+        ticker = client.get_ticker(symbol=symbol)
+    except Exception:
+        return 0.0
+    if not isinstance(ticker, dict):
+        return 0.0
+    for key in ("last", "lastPr", "lastPx", "lastPrice", "close", "price"):
+        try:
+            px = float(ticker.get(key) or 0.0)
+        except Exception:
+            px = 0.0
+        if px > 0:
+            return px
+    return 0.0
+
+
+def prepare_spot_live_order_sizes(
+    client: BaseRestClient,
+    *,
+    symbol: str,
+    side: str,
+    reduce_only: bool,
+    base_qty: float,
+    ref_price: float = 0.0,
+) -> Tuple[float, float, bool]:
+    """
+    Normalize spot sizes for PendingOrderWorker (strategy live path).
+
+    Returns:
+        (base_qty, quote_amount, market_buy_uses_quote)
+        ``market_buy_uses_quote`` is True when market BUY should send USDT notional
+        (Bitget / KuCoin / Gate spot).
+    """
+    from app.services.live_trading.binance_spot import BinanceSpotClient
+    from app.services.live_trading.bitget_spot import BitgetSpotClient
+    from app.services.live_trading.gate import GateSpotClient
+    from app.services.live_trading.kucoin import KucoinSpotClient
+
+    qty = float(base_qty or 0.0)
+    sd = (side or "").strip().lower()
+    quote_amt = 0.0
+    market_buy_uses_quote = False
+
+    if sd == "sell" and reduce_only:
+        qty = normalize_spot_base_quantity(
+            client, symbol=symbol, quantity=qty, for_market=True
+        )
+        return max(0.0, qty), 0.0, False
+
+    if sd == "buy" and not reduce_only:
+        rp = float(ref_price or 0.0)
+        if rp <= 0:
+            rp = fetch_spot_last_price(client, symbol=symbol)
+        if rp > 0 and qty > 0:
+            quote_amt = qty * rp
+        quote_amt = normalize_spot_quote_amount(
+            client, symbol=symbol, quote_amount=quote_amt
+        )
+        if isinstance(client, (BitgetSpotClient, KucoinSpotClient, GateSpotClient)):
+            market_buy_uses_quote = quote_amt > 0
+        if isinstance(client, BinanceSpotClient) or not market_buy_uses_quote:
+            qty = normalize_spot_base_quantity(
+                client, symbol=symbol, quantity=qty, for_market=True
+            )
+        return max(0.0, qty), max(0.0, quote_amt), market_buy_uses_quote
+
+    qty = normalize_spot_base_quantity(
+        client, symbol=symbol, quantity=qty, for_market=True
+    )
+    return max(0.0, qty), 0.0, False
+
+
+def normalize_spot_quote_amount(
+    client: BaseRestClient,
+    *,
+    symbol: str,
+    quote_amount: float,
+) -> float:
+    """Floor USDT notional for spot market buy (Bitget/KuCoin/Gate quote-sized orders)."""
+    amt = float(quote_amount or 0.0)
+    if amt <= 0:
+        return 0.0
+    norm = getattr(client, "_normalize_quote_size", None)
+    if callable(norm):
+        try:
+            dec, _prec = norm(symbol=str(symbol), quote_size=amt)
+            return float(dec or 0.0)
+        except Exception as e:
+            logger.warning("spot quote normalize failed (%s): %s", symbol, e)
+    return amt
+
+
 def normalize_spot_base_quantity(
     client: BaseRestClient,
     *,
@@ -208,15 +304,21 @@ def normalize_spot_base_quantity(
     qty = float(quantity or 0.0)
     if qty <= 0:
         return 0.0
-    norm = getattr(client, "_normalize_quantity", None)
-    if not callable(norm):
-        return qty
-    try:
-        dec, _prec = norm(symbol=str(symbol), quantity=qty, for_market=for_market)
-        return float(dec or 0.0)
-    except Exception as e:
-        logger.warning("spot quantity normalize failed (%s): %s", symbol, e)
-        return qty
+    norm_qty = getattr(client, "_normalize_quantity", None)
+    if callable(norm_qty):
+        try:
+            dec, _prec = norm_qty(symbol=str(symbol), quantity=qty, for_market=for_market)
+            return float(dec or 0.0)
+        except Exception as e:
+            logger.warning("spot quantity normalize failed (%s): %s", symbol, e)
+    norm_base = getattr(client, "_normalize_base_size", None)
+    if callable(norm_base):
+        try:
+            dec, _prec = norm_base(symbol=str(symbol), base_size=qty)
+            return float(dec or 0.0)
+        except Exception as e:
+            logger.warning("spot base normalize failed (%s): %s", symbol, e)
+    return qty
 
 
 def clamp_spot_close_quantity(

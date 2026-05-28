@@ -176,13 +176,6 @@ def run_backtest():
         # Extract params - use current user's ID
         user_id = g.user_id
         indicator_code = data.get('indicatorCode', '')
-        is_safe_code, unsafe_reason = validate_code_safety(indicator_code or '')
-        if not is_safe_code:
-            return jsonify({
-                'code': 0,
-                'msg': f'Unsafe indicator code: {unsafe_reason}',
-                'data': None
-            }), 400
         indicator_id = data.get('indicatorId')
         symbol = (data.get('symbol') or '').strip()
         market = (data.get('market') or '').strip()
@@ -227,6 +220,14 @@ def run_backtest():
             return jsonify({
                 'code': 0,
                 'msg': 'Missing required parameters',
+                'data': None
+            }), 400
+
+        is_safe_code, unsafe_reason = validate_code_safety(indicator_code or '')
+        if not is_safe_code:
+            return jsonify({
+                'code': 0,
+                'msg': f'Unsafe indicator code: {unsafe_reason}',
                 'data': None
             }), 400
         
