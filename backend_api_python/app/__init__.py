@@ -353,6 +353,22 @@ def create_app(config_name='default'):
 
     setup_logger()
 
+    from app.config.settings import Config
+    if Config.ENABLE_REQUEST_LOG:
+        @app.before_request
+        def log_request_info():
+            from flask import request
+            logger.info(f"→ {request.method} {request.path} | args={dict(request.args)} | Content-Type={request.content_type}")
+        
+        @app.after_request
+        def log_response_info(response):
+            from flask import request
+            logger.info(f"← {request.method} {request.path} | status={response.status_code}")
+            return response
+        logger.info("Request logging enabled")
+    else:
+        logger.info("Request logging disabled")
+
     # ib_insync uses asyncio across Flask + worker threads; without this, IBKR
     # sockets often drop within seconds (nested loop / thread handoff issues).
     try:

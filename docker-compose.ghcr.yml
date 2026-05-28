@@ -33,6 +33,7 @@
 # Per-side overrides only kick in when BACKEND_TAG / FRONTEND_TAG are
 # explicitly set — useful for testing a frontend hotfix against a
 # stable backend, or vice versa.
+# IMAGE_TAG: latest
 
 services:
   postgres:
@@ -79,7 +80,7 @@ services:
 
   backend:
     # Tag resolution: BACKEND_TAG > IMAGE_TAG > latest. See header comment.
-    image: ${BACKEND_IMAGE:-ghcr.io/brokermr810/quantdinger-backend}:${BACKEND_TAG:-${IMAGE_TAG:-latest}}
+    image: ${BACKEND_IMAGE:-ghcr.io/brokermr810/quantdinger-backend}:${BACKEND_TAG:-latest}
     pull_policy: always
     container_name: quantdinger-backend
     restart: unless-stopped
@@ -98,7 +99,7 @@ services:
       # /app/.env. The entrypoint will auto-generate SECRET_KEY on first start
       # and write it back through the bind mount, so the host file gets the
       # generated key persistently.
-      - ./backend.env:/app/.env
+      - ./backend/.env:/app/.env
     environment:
       - PYTHON_API_HOST=0.0.0.0
       - PYTHON_API_PORT=5000
@@ -127,7 +128,7 @@ services:
 
   frontend:
     # Tag resolution: FRONTEND_TAG > IMAGE_TAG > latest. See header comment.
-    image: ${FRONTEND_IMAGE:-ghcr.io/brokermr810/quantdinger-frontend}:${FRONTEND_TAG:-${IMAGE_TAG:-latest}}
+    image: ${FRONTEND_IMAGE:-ghcr.io/brokermr810/quantdinger-frontend}:${FRONTEND_TAG:-latest}
     pull_policy: always
     container_name: quantdinger-frontend
     restart: unless-stopped

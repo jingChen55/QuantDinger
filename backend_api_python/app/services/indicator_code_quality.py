@@ -78,7 +78,7 @@ def _strip_comments(code: str) -> str:
     """Strip end-of-line `#` comments; keeps line structure intact."""
     out_lines: List[str] = []
     for raw_line in (code or "").split("\n"):
-        in_str: str | None = None
+        in_str: Optional[str] = None
         escape = False
         cut = len(raw_line)
         for i, ch in enumerate(raw_line):

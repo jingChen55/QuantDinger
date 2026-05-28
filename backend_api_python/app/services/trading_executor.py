@@ -1087,8 +1087,17 @@ class TradingExecutor:
                 return
             is_script = stype == 'ScriptStrategy'
 
-            # 初始化策略状态
-            trading_config = strategy['trading_config']
+            raw_trading_config = strategy.get('trading_config') or {}
+            if isinstance(raw_trading_config, str):
+                try:
+                    import json
+                    raw_trading_config = json.loads(raw_trading_config) or {}
+                except Exception:
+                    raw_trading_config = {}
+            
+            strategy['trading_config'] = raw_trading_config
+            trading_config = raw_trading_config
+            
             normalize_trading_execution_modes(trading_config)
             logger.info(
                 f"Strategy {strategy_id} execution modes: strict_mode={trading_config.get('strict_mode')}, "
@@ -1109,6 +1118,10 @@ class TradingExecutor:
                 execution_mode = 'signal'
             strategy_mode = (strategy.get('strategy_mode') or 'signal').strip().lower()
             is_bot_mode = strategy_mode == 'bot'
+            if str(trading_config.get('bot_type', '')).strip().lower() in ('webhook_signal', 'webhook'):
+                strategy_mode = 'bot'
+                is_bot_mode = True
+                logger.info(f"Strategy {strategy_id} webhook_signal detected: strategy_mode=bot")
             notification_config = strategy.get('notification_config') or {}
             strategy_name = strategy.get('strategy_name') or f"strategy_{int(strategy_id)}"
             # Strategy owner: used to scope cross-feature notifications (e.g. portfolio
@@ -1175,8 +1188,12 @@ class TradingExecutor:
             strategy_code = ''
             on_init_script = None
             on_bar_script = None
+            bot_type = str(trading_config.get('bot_type', '')).strip().lower()
+            is_webhook_signal = bot_type in ('webhook_signal', 'webhook')
+            
+            logger.info(f"Strategy {strategy_id} bot_type='{bot_type}', is_webhook_signal={is_webhook_signal}, is_script={is_script}")
 
-            if is_script:
+            if is_script and not is_webhook_signal:
                 strategy_code = (strategy.get('strategy_code') or '').strip()
                 if not strategy_code:
                     logger.error(f"Strategy {strategy_id} strategy_code is empty")
@@ -1197,6 +1214,8 @@ class TradingExecutor:
                     logger.error(f"Strategy {strategy_id} script compile failed: {e}")
                     logger.error(traceback.format_exc())
                     return
+            elif is_webhook_signal:
+                logger.info(f"Strategy {strategy_id} webhook_signal mode: listening for webhook signals")
             else:
                 indicator_config = strategy['indicator_config']
                 indicator_id = indicator_config.get('indicator_id')
@@ -1317,7 +1336,10 @@ class TradingExecutor:
 
             script_ctx = None
             last_script_closed_ts = None
-            if is_script:
+            if is_webhook_signal:
+                last_kline_time = int(time.time())
+                logger.info(f"Strategy {strategy_id} webhook_signal mode: initialized")
+            elif is_script:
                 script_ctx, last_script_closed_ts = self._init_script_strategy_context(
                     strategy_id, df, trading_config, initial_capital
                 )
@@ -1527,7 +1549,7 @@ class TradingExecutor:
                         # 3. 非K线更新 tick
                         # ============================================
                         # 3a. Bot-mode scripts: evaluate on every tick (grid/martingale need real-time price tracking)
-                        if is_script and is_bot_mode and on_bar_script and script_ctx is not None:
+                        if is_script and not is_webhook_signal and is_bot_mode and on_bar_script and script_ctx is not None:
                             try:
                                 self._hydrate_script_ctx_from_positions(
                                     script_ctx, strategy_id, symbol,
@@ -1578,6 +1600,7 @@ class TradingExecutor:
                         # 3a2. Non-bot scripts: evaluate forming bar when strict mode is off
                         elif (
                             is_script
+                            and not is_webhook_signal
                             and not is_bot_mode
                             and not strict_mode
                             and on_bar_script

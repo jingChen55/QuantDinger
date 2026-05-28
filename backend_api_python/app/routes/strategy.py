@@ -151,7 +151,7 @@ def _validate_strategy_code_internal(code: str) -> dict:
     }
 
 
-def _strategy_debug_summary(validation: dict | None = None) -> dict:
+def _strategy_debug_summary(validation: Optional[dict] = None) -> dict:
     validation = validation or {}
     hints = validation.get("hints") or []
     return {
@@ -173,7 +173,7 @@ def _request_lang(default: str = "zh-CN") -> str:
     return lang or default
 
 
-def _is_zh_lang(lang: str | None) -> bool:
+def _is_zh_lang(lang: Optional[str]) -> bool:
     return str(lang or "zh-CN").strip().lower().startswith("zh")
 
 
@@ -190,7 +190,7 @@ def _strategy_ai_text(key: str, lang: str = "zh-CN") -> str:
     return texts.get(key, key)
 
 
-def _strategy_hint_to_text(hint_code: str, params: dict | None = None, lang: str = "zh-CN") -> str:
+def _strategy_hint_to_text(hint_code: str, params: Optional[dict] = None, lang: str = "zh-CN") -> str:
     _ = params or {}
     is_zh = _is_zh_lang(lang)
     if hint_code == 'MISSING_ON_INIT':
@@ -748,6 +748,122 @@ def delete_strategy():
         return jsonify({'code': 1 if ok else 0, 'msg': 'success' if ok else 'failed', 'data': None})
     except Exception as e:
         logger.error(f"delete_strategy failed: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'code': 0, 'msg': str(e), 'data': None}), 500
+
+
+@strategy_bp.route('/strategies/webhook-url', methods=['GET'])
+@login_required
+def get_strategy_webhook_url():
+    """
+    Get webhook URL for a strategy.
+    
+    Query params:
+        id: Strategy ID
+    
+    Returns:
+        webhook_url: Full webhook URL with key
+        webhook_key: Raw webhook key (optional, for security)
+    """
+    try:
+        user_id = g.user_id
+        strategy_id = request.args.get('id', type=int)
+        if not strategy_id:
+            return jsonify({'code': 0, 'msg': 'Missing strategy id parameter', 'data': None}), 400
+        
+        st = get_strategy_service().get_strategy(strategy_id, user_id=user_id)
+        if not st:
+            return jsonify({'code': 0, 'msg': 'Strategy not found', 'data': None}), 404
+        
+        trading_config = st.get('trading_config') or {}
+        if isinstance(trading_config, str):
+            import json
+            trading_config = json.loads(trading_config) if trading_config else {}
+        
+        webhook_key = trading_config.get('webhook_key', '')
+        
+        if not webhook_key:
+            import os
+            secret = os.getenv("WEBHOOK_SECRET", "quantdinger-webhook-secret")
+            import hashlib
+            webhook_key = hashlib.sha256(
+                f"{strategy_id}:{user_id}:{secret}".encode()
+            ).hexdigest()[:32]
+        
+        base_url = os.getenv("WEBHOOK_BASE_URL", request.host_url.rstrip("/"))
+        webhook_url = f"{base_url}/api/webhook/signal?key={webhook_key}"
+        
+        return jsonify({
+            'code': 1,
+            'msg': 'success',
+            'data': {
+                'webhook_url': webhook_url,
+                'webhook_key': webhook_key
+            }
+        })
+    except Exception as e:
+        logger.error(f"get_strategy_webhook_url failed: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'code': 0, 'msg': str(e), 'data': None}), 500
+
+
+@strategy_bp.route('/strategies/webhook-url/regenerate', methods=['POST'])
+@login_required
+def regenerate_strategy_webhook_url():
+    """
+    Regenerate webhook URL for a strategy.
+    
+    Query params:
+        id: Strategy ID
+    
+    Returns:
+        webhook_url: New full webhook URL with key
+        webhook_key: New raw webhook key
+    """
+    try:
+        user_id = g.user_id
+        strategy_id = request.args.get('id', type=int)
+        if not strategy_id:
+            return jsonify({'code': 0, 'msg': 'Missing strategy id parameter', 'data': None}), 400
+        
+        st = get_strategy_service().get_strategy(strategy_id, user_id=user_id)
+        if not st:
+            return jsonify({'code': 0, 'msg': 'Strategy not found', 'data': None}), 404
+        
+        import os
+        import hashlib
+        import json
+        
+        secret = os.getenv("WEBHOOK_SECRET", "quantdinger-webhook-secret")
+        new_key = hashlib.sha256(
+            f"{strategy_id}:{user_id}:{secret}:{int(time.time())}".encode()
+        ).hexdigest()[:32]
+        
+        trading_config = st.get('trading_config') or {}
+        if isinstance(trading_config, str):
+            trading_config = json.loads(trading_config) if trading_config else {}
+        
+        trading_config['webhook_key'] = new_key
+        
+        get_strategy_service().update_strategy(
+            strategy_id,
+            {'trading_config': trading_config},
+            user_id=user_id
+        )
+        
+        base_url = os.getenv("WEBHOOK_BASE_URL", request.host_url.rstrip("/"))
+        webhook_url = f"{base_url}/api/webhook/signal?key={new_key}"
+        
+        return jsonify({
+            'code': 1,
+            'msg': 'success',
+            'data': {
+                'webhook_url': webhook_url,
+                'webhook_key': new_key
+            }
+        })
+    except Exception as e:
+        logger.error(f"regenerate_strategy_webhook_url failed: {str(e)}")
         logger.error(traceback.format_exc())
         return jsonify({'code': 0, 'msg': str(e), 'data': None}), 500
 

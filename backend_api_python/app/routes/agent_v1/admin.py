@@ -58,7 +58,7 @@ def _is_saas_mode() -> bool:
     return raw in _SAAS_MODE_VALUES
 
 
-def _normalize_expiry(days: int | None) -> datetime | None:
+def _normalize_expiry(days: Optional[int]) -> Optional[datetime]:
     """Return an *aware* UTC datetime expires_at value.
 
     psycopg2 will convert it to the server's TZ wall-clock when storing into

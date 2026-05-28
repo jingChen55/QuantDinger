@@ -50,6 +50,9 @@ def resolve_ccxt_for_live_trading(exchange_id: str, market_type: str) -> Tuple[s
     elif e == "htx" or e == "huobi":
         ccxt_id = "htx"
         opts["defaultType"] = "swap" if mt == "swap" else "spot"
+    elif e == "mexc":
+        ccxt_id = "mexc"
+        opts["defaultType"] = "swap" if mt == "swap" else "spot"
     elif e == "coinbase":
         ccxt_id = "coinbase"
     # unknown id: pass through and let ccxt raise if unsupported

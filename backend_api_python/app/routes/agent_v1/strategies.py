@@ -29,7 +29,7 @@ _PUBLIC_FIELDS = (
 )
 
 
-def _project(row: dict | None) -> dict | None:
+def _project(row: Optional[dict]) -> Optional[dict]:
     if not row:
         return None
     return {k: row.get(k) for k in _PUBLIC_FIELDS if k in row}

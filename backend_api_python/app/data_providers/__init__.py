@@ -154,7 +154,7 @@ def _unwrap_envelope(envelope: Any) -> tuple[Optional[Any], bool]:
 # ---------------------------------------------------------------------------
 
 
-def get_cached(key: str, ttl: int | None = None) -> Optional[Any]:
+def get_cached(key: str, ttl: Optional[int] = None) -> Optional[Any]:
     """Return cached data if not expired.
 
     *ttl* is accepted for backward-compat with the legacy signature but is
@@ -172,7 +172,7 @@ def get_cached(key: str, ttl: int | None = None) -> Optional[Any]:
     return value
 
 
-def set_cached(key: str, data: Any, ttl: int | None = None):
+def set_cached(key: str, data: Any, ttl: Optional[int] = None):
     """Write a cache entry, wrapping it in a freshness envelope.
 
     The backend Redis/MemoryCache layer also enforces its own expiry; we
@@ -189,7 +189,7 @@ def cached_or_compute(
     key: str,
     compute: Callable[[], Any],
     *,
-    ttl: int | None = None,
+    ttl: Optional[int] = None,
     force: bool = False,
     allow_stale: bool = True,
 ) -> Any:

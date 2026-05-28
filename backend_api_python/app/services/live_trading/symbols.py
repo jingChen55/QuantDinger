@@ -232,3 +232,28 @@ def to_htx_contract_code(symbol: str) -> str:
         return s.replace("/", "-").replace(":", "-").upper()
     return f"{base}-{quote}"
 
+
+def to_mexc_symbol(symbol: str) -> str:
+    """
+    MEXC spot symbol format: BASEQUOTE, e.g. BTCUSDT.
+    """
+    base, quote = _split_base_quote(symbol)
+    if not quote:
+        return (symbol or "").replace("/", "").replace(":", "").upper()
+    return f"{base}{quote}"
+
+
+def to_mexc_swap_symbol(symbol: str) -> str:
+    """
+    MEXC perpetual swap symbol format: BASE_QUOTE, e.g. BTC_USDT.
+    """
+    s = str(symbol or "").strip()
+    if not s:
+        return s
+    if "_" in s and "/" not in s and "-" not in s:
+        return s.upper()
+    base, quote = _split_base_quote(symbol)
+    if not base or not quote:
+        return s.replace("/", "-").replace(":", "-").replace("-", "_").upper()
+    return f"{base}_{quote}"
+

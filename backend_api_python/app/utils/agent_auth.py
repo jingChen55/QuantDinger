@@ -189,7 +189,7 @@ def parse_scopes(raw: str | Iterable[str] | None) -> set[str]:
     return {p for p in items if p in ALL_SCOPES}
 
 
-def parse_csv_list(raw: str | None, default: str = "*") -> list[str]:
+def parse_csv_list(raw: Optional[str], default: str = "*") -> list:
     if not raw:
         return [default]
     items = [p.strip() for p in str(raw).split(",") if p.strip()]

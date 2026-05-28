@@ -135,8 +135,8 @@ def _validate_indicator_code_internal(code: str, user_params: Dict[str, Any] | N
       {
         "success": bool,
         "msg": str,
-        "error_type": str | None,
-        "details": str | None,
+        "error_type": Optional[str],
+        "details": Optional[str],
         "plots_count": int,
         "signals_count": int,
         "hints": [...]
@@ -305,7 +305,7 @@ def _request_lang(default: str = "zh-CN") -> str:
     return lang or default
 
 
-def _is_zh_lang(lang: str | None) -> bool:
+def _is_zh_lang(lang: Optional[str]) -> bool:
     return str(lang or "zh-CN").strip().lower().startswith("zh")
 
 
@@ -1035,10 +1035,10 @@ Return **only** valid Python source: **no** markdown fences, **no** ` ``` `, **n
 """
 
     def _template_code() -> str:
-        # Fallback template that follows the project expectations.
+        prompt_text = (prompt or "").replace("\n", " ")[:200]
         header = (
             f"my_indicator_name = \"Custom Indicator\"\n"
-            f"my_indicator_description = \"{(prompt or '').replace('\n', ' ')[:200]}\"\n\n"
+            f'my_indicator_description = "{prompt_text}"\n\n'
         )
         body = (
             "# ===== Strategy defaults (single source of truth) =====\n"

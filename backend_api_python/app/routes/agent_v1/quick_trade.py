@@ -52,7 +52,7 @@ def _last_price(market: str, symbol: str) -> float | None:
         return None
 
 
-def _record_paper_order(*, body: dict, fill_price: float | None, status: str, note: str = "") -> dict:
+def _record_paper_order(*, body: dict, fill_price: Optional[float], status: str, note: str = "") -> dict:
     order_uid = uuid.uuid4().hex
     market = (body.get("market") or "").strip()
     symbol = (body.get("symbol") or "").strip()

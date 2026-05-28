@@ -274,9 +274,9 @@ class StrategyService:
             import ccxt
             
             # Create exchange instance (public only)
-            exchange_class = getattr(ccxt, exchange_id, None)
+            exchange_class = getattr(ccxt, ex, None)
             if not exchange_class:
-                return {'success': False, 'message': f'Unsupported exchange: {exchange_id}', 'symbols': []}
+                return {'success': False, 'message': f'Unsupported exchange: {ex}', 'symbols': []}
             
             exchange_config_dict = {
                 'enableRateLimit': True,
@@ -327,6 +327,7 @@ class StrategyService:
                 from app.services.live_trading.gate import GateSpotClient, GateUsdtFuturesClient
                 from app.services.live_trading.deepcoin import DeepcoinClient
                 from app.services.live_trading.htx import HtxClient
+                from app.services.live_trading.mexc import MexcClient
 
                 resolved = resolve_exchange_config(exchange_config or {}, user_id=user_id)
                 safe_cfg = safe_exchange_config_for_log(resolved)
@@ -518,6 +519,8 @@ class StrategyService:
                     if isinstance(client, DeepcoinClient):
                         return client.get_balance()
                     if isinstance(client, HtxClient):
+                        return client.get_balance()
+                    if isinstance(client, MexcClient):
                         return client.get_balance()
                     return None
 
@@ -839,6 +842,24 @@ class StrategyService:
                 self._display_item('dipBuyEnabled', 'trading-bot.dca.dipBuy', bool(params.get('dipBuyEnabled')), 'bool'),
                 self._display_item('dipThreshold', 'trading-bot.dca.dipThreshold', self._to_float(params.get('dipThreshold'), 0.0), 'percent'),
             ]
+            return display
+
+        if bot_type in ('webhook_signal', 'webhook'):
+            display['capital_label_key'] = 'trading-bot.webhook.capital'
+            display['strategy_params'] = [
+                self._display_item('webhookKey', 'trading-bot.webhook.webhookKey', params.get('webhook_key') or 'Not generated', 'text'),
+                self._display_item('webhookUrl', 'trading-bot.webhook.webhookUrl', params.get('webhook_url') or '', 'text'),
+                self._display_item('defaultQty', 'trading-bot.webhook.defaultQty', self._to_float(params.get('defaultQty'), 0.0), 'usdt'),
+                self._display_item('positionSizePct', 'trading-bot.webhook.positionSizePct', self._to_float(params.get('positionSizePct'), 10.0), 'percent'),
+                self._display_item('maxPositions', 'trading-bot.webhook.maxPositions', self._to_int(params.get('maxPositions'), 3), 'number'),
+            ]
+            display['risk_params'].append(
+                self._display_item('stopLossPct', 'trading-bot.risk.stopLossPct', self._to_float(tc.get('stop_loss_pct'), 0.0), 'percent')
+            )
+            display['risk_params'].append(
+                self._display_item('takeProfitPct', 'trading-bot.risk.takeProfitPct', self._to_float(tc.get('take_profit_pct'), 0.0), 'percent')
+            )
+            return display
 
         if self._to_float(tc.get('stop_loss_pct'), 0.0) > 0:
             display['risk_params'].append(
@@ -909,6 +930,10 @@ class StrategyService:
     def list_strategies(self, user_id: int = 1) -> List[Dict[str, Any]]:
         """List strategies for the specified user."""
         try:
+            from app import get_trading_executor
+            executor = get_trading_executor()
+            running_ids = set(executor.running_strategies.keys())
+
             with get_db_connection() as db:
                 cur = db.cursor()
                 cur.execute(
@@ -928,17 +953,23 @@ class StrategyService:
 
             out = []
             for r in rows:
+                sid = int(r['id']) if r.get('id') is not None else None
+                status = r.get('status') or 'stopped'
+                if sid and sid in running_ids:
+                    status = 'running'
+
                 ex = self._safe_json_loads(r.get('exchange_config'), {})
                 ind = self._safe_json_loads(r.get('indicator_config'), {})
                 tr = self._safe_json_loads(r.get('trading_config'), {})
                 ai = self._safe_json_loads(r.get('ai_model_config'), {})
                 notify = self._safe_json_loads(r.get('notification_config'), {})
-                m = metrics.get(int(r['id']), {'realized_pnl': 0.0, 'unrealized_pnl': 0.0})
+                m = metrics.get(sid, {'realized_pnl': 0.0, 'unrealized_pnl': 0.0})
                 init_cap = float(r.get('initial_capital') or 0.0)
                 current_equity = max(0.0, init_cap + m['realized_pnl'] + m['unrealized_pnl'])
                 total_pnl = m['realized_pnl'] + m['unrealized_pnl']
                 out.append({
                     **r,
+                    'status': status,
                     'exchange_config': ex,
                     'indicator_config': ind,
                     'trading_config': tr,

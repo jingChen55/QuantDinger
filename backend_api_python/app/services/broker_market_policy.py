@@ -29,7 +29,7 @@ from typing import Dict, Optional, Set
 # Each is assumed to support both spot and swap unless noted otherwise.
 _CRYPTO_EXCHANGES_SPOT_AND_SWAP: Set[str] = {
     "binance", "okx", "bitget", "bybit",
-    "kraken", "kucoin", "gate", "deepcoin", "htx",
+    "kraken", "kucoin", "gate", "deepcoin", "htx", "mexc",
 }
 # Coinbase Exchange API is institutional spot-only on our side.
 _CRYPTO_EXCHANGES_SPOT_ONLY: Set[str] = {"coinbaseexchange"}
@@ -82,10 +82,12 @@ LONG_ONLY_BROKERS: Set[str] = {"ibkr", "alpaca"}
 #               + gap risk makes it impractical outside crypto perpetuals.
 #   dca / trend: long-only by nature, fine on every market we support.
 BOT_TYPE_MARKETS: Dict[str, Set[str]] = {
-    "grid":       {"Crypto", "Forex"},
-    "martingale": {"Crypto"},
-    "dca":        {"Crypto", "USStock", "Forex"},
-    "trend":      {"Crypto", "USStock", "Forex"},
+    "grid":           {"Crypto", "Forex"},
+    "martingale":     {"Crypto"},
+    "dca":            {"Crypto", "USStock", "Forex"},
+    "trend":          {"Crypto", "USStock", "Forex"},
+    "webhook_signal": {"Crypto", "Forex", "USStock"},
+    "webhook":        {"Crypto", "Forex", "USStock"},
 }
 
 

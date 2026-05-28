@@ -163,7 +163,7 @@ services:
       # nginx envsubst will inject this into the proxy_pass directive at start.
       # Override with the backend's reachable URL when deploying outside compose
       # (e.g. Railway: http://${{Backend.RAILWAY_PRIVATE_DOMAIN}}:5000).
-      - BACKEND_URL=${BACKEND_URL:-http://backend:5000}
+      - BACKEND_URL=${BACKEND_URL:-http://localhost:5000}
     depends_on:
       - backend
     networks:
