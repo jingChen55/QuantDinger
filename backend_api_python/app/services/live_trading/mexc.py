@@ -305,8 +305,7 @@ class MexcClient(BaseRestClient):
                     or order_data.get("orderId")
                     or order_data.get("clientOrderId")
                     or order_data.get("id")
-                    or order_data.get("data", {}).get("order_id", "")
-                    if isinstance(order_data.get("data"), dict) else ""
+                    or (order_data.get("data", {}).get("order_id") if isinstance(order_data.get("data"), dict) else "")
                 )
                 logger.info(f"MEXC order_id parsed: {order_id}")
                 return LiveOrderResult(
