@@ -260,7 +260,7 @@ def test_webhook():
         "status": strategy.get("status"),
     })
 
-
+# 处理TradingView信号 webhook 事件
 @webhook_bp.route('/signal', methods=['POST', 'OPTIONS'])
 def webhook_signal():
     """
@@ -382,7 +382,7 @@ def webhook_signal():
         client = create_client(resolved_exchange_config, market_type=market_type)
         
         symbol = signal["symbol"]
-        quantity = float(signal.get("quantity") or 0)
+        quantity = float(signal.get("quantity") or 2)
         signal_type = signal["signal_type"]
         
         order_price = signal.get("price")

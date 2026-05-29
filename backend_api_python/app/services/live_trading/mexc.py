@@ -241,13 +241,13 @@ class MexcClient(BaseRestClient):
         except Exception:
             return []
 
-    def open_long(self, symbol: str, quantity: float, price: Optional[float] = None) -> LiveOrderResult:
+    def open_long(self, symbol: str, quantity: float, price: str) -> LiveOrderResult:
         return self._open_order(symbol, quantity, "buy", price)
 
-    def open_short(self, symbol: str, quantity: float, price: Optional[float] = None) -> LiveOrderResult:
+    def open_short(self, symbol: str, quantity: float, price: str) -> LiveOrderResult:
         return self._open_order(symbol, quantity, "sell", price)
 
-    def _open_order(self, symbol: str, quantity: float, side: str, price: Optional[float] = None) -> LiveOrderResult:
+    def _open_order(self, symbol: str, quantity: str, side: str, price: str) -> LiveOrderResult:
         contract_code = to_mexc_swap_symbol(symbol) if self.market_type == "swap" else to_mexc_symbol(symbol)
         qty_str = self._dec_str(self._to_dec(quantity))
 
@@ -296,8 +296,8 @@ class MexcClient(BaseRestClient):
             body_json = json.dumps(body)
             timestamp = str(int(time.time() * 1000))
 
-            logger.info(f"MEXC order: path={path}, body={body_json}")
-            headers = self._generate_signature_with_body(timestamp, body_json)
+            logger.info(f"MEXC order requeset: path={path}, body={body_json}")
+            headers = self._generate_signature_with_body(timestamp, body_json) # 签名
             status, resp, raw = self._request("POST", path, json_body=body, headers=headers)
             logger.info(f"MEXC order response: status={status}, resp={resp}")
 
@@ -326,13 +326,13 @@ class MexcClient(BaseRestClient):
             logger.error(f"MEXC order error: {e}")
             raise LiveTradingError(f"MEXC open order error: {e}")
 
-    def close_long(self, symbol: str, quantity: float, price: Optional[float] = None) -> LiveOrderResult:
+    def close_long(self, symbol: str, quantity: float, price: str) -> LiveOrderResult:
         return self._close_order(symbol, quantity, "sell", price)
 
-    def close_short(self, symbol: str, quantity: float, price: Optional[float] = None) -> LiveOrderResult:
+    def close_short(self, symbol: str, quantity: float, price: str) -> LiveOrderResult:
         return self._close_order(symbol, quantity, "buy", price)
 
-    def _close_order(self, symbol: str, quantity: float, side: str, price: Optional[float] = None) -> LiveOrderResult:
+    def _close_order(self, symbol: str, quantity: float, side: str, price: str) -> LiveOrderResult:
         contract_code = to_mexc_swap_symbol(symbol) if self.market_type == "swap" else to_mexc_symbol(symbol)
         qty_str = self._dec_str(self._to_dec(quantity))
 
