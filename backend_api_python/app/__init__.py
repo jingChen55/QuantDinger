@@ -7,7 +7,7 @@ import logging
 import traceback
 from datetime import date, datetime
 
-from flask import Flask
+import flask # type: ignore
 from flask.json.provider import DefaultJSONProvider
 from flask_cors import CORS
 
@@ -292,7 +292,7 @@ def create_app(config_name='default'):
     Returns:
         Flask app
     """
-    app = Flask(__name__)
+    app = flask.Flask(__name__)
     app.json_provider_class = SafeJSONProvider
     app.json = SafeJSONProvider(app)
 

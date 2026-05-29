@@ -10,7 +10,6 @@ import json
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError, as_completed
 from typing import Optional
-
 from app.services.kline import KlineService
 from app.utils.logger import get_logger
 from app.utils.cache import CacheManager
@@ -578,12 +577,10 @@ def remove_watchlist():
         return jsonify({'code': 0, 'msg': str(e), 'data': None}), 500
 
 
-def get_single_price(market: str, symbol: str) -> dict:
+def get_single_price(market: str, symbol: str, exchange_id: Optional[str] = None, market_type: Optional[str] = None) -> dict:
     """获取单个标的的价格数据"""
     try:
-        # 使用 get_realtime_price 获取实时价格（内部已有30秒缓存）
-        # 相比原先的 '1D' K线逻辑，这能更及时地反映 Crypto 等 24h 市场的变化
-        price_data = kline_service.get_realtime_price(market, symbol)
+        price_data = kline_service.get_realtime_price(market, symbol, exchange_id=exchange_id, market_type=market_type)
         
         return {
             'market': market,
@@ -717,10 +714,14 @@ def get_price():
     参数:
         market: 市场类型
         symbol: 交易标的
+        exchange_id: 交易所ID (可选，用于加密货币市场指定交易所)
+        market_type: 市场类型 (可选，spot/swap)
     """
     try:
         market = request.args.get('market', '')
         symbol = request.args.get('symbol', '')
+        exchange_id = request.args.get('exchange_id')
+        market_type = request.args.get('market_type')
         
         if not market or not symbol:
             return jsonify({
@@ -729,7 +730,7 @@ def get_price():
                 'data': None
             }), 400
         
-        result = get_single_price(market, symbol)
+        result = get_single_price(market, symbol, exchange_id=exchange_id, market_type=market_type)
         
         return jsonify({
             'code': 1,
@@ -741,6 +742,53 @@ def get_price():
         logger.error(f"Failed to fetch price: {str(e)}")
         return jsonify({
             'code': 0,
+            'msg': f'Failed: {str(e)}',
+            'data': None
+        }), 500
+
+
+@market_bp.route('/mexc/price', methods=['GET'])
+def get_mexc_price():
+    """
+    获取MEXC永续合约最新价格
+    
+    参数:
+        symbol: 交易对，如 BTC_USDT
+    """
+    try:
+        symbol = request.args.get('symbol', '')
+        market_type = request.args.get('market_type', 'swap')
+        
+        if not symbol:
+            return jsonify({
+                'success': False,
+                'msg': 'Missing symbol parameter',
+                'data': None
+            }), 400
+        
+        from app.services.live_trading.mexc import MexcClient
+        result = MexcClient.get_public_price(symbol, market_type=market_type)
+        
+        if "error" in result:
+            return jsonify({
+                'success': False,
+                'msg': result["error"],
+                'data': None
+            }), 500
+        
+        return jsonify({
+            'success': True,
+            'msg': 'success',
+            'data': {
+                'symbol': result.get('symbol', symbol),
+                'price': result.get('price')
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Failed to get MEXC price: {str(e)}")
+        return jsonify({
+            'success': False,
             'msg': f'Failed: {str(e)}',
             'data': None
         }), 500

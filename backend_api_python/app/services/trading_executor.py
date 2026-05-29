@@ -25,11 +25,7 @@ from app.utils.strategy_runtime_logs import append_strategy_log
 from app.data_sources import DataSourceFactory, UnsupportedMarketError
 from app.services.kline import KlineService
 from app.services.indicator_params import IndicatorParamsParser, IndicatorCaller
-from app.services.strategy_script_runtime import (
-    ScriptBar,
-    StrategyScriptContext,
-    compile_strategy_script_handlers,
-)
+from app.services.strategy_script_runtime import ( ScriptBar, StrategyScriptContext, compile_strategy_script_handlers, )
 
 logger = get_logger(__name__)
 
@@ -1336,6 +1332,7 @@ class TradingExecutor:
 
             script_ctx = None
             last_script_closed_ts = None
+            pending_signals = []
             if is_webhook_signal:
                 last_kline_time = int(time.time())
                 logger.info(f"Strategy {strategy_id} webhook_signal mode: initialized")

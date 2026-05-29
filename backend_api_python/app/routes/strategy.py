@@ -771,6 +771,7 @@ def get_strategy_webhook_url():
         if not strategy_id:
             return jsonify({'code': 0, 'msg': 'Missing strategy id parameter', 'data': None}), 400
         
+        import os
         st = get_strategy_service().get_strategy(strategy_id, user_id=user_id)
         if not st:
             return jsonify({'code': 0, 'msg': 'Strategy not found', 'data': None}), 404
@@ -783,7 +784,6 @@ def get_strategy_webhook_url():
         webhook_key = trading_config.get('webhook_key', '')
         
         if not webhook_key:
-            import os
             secret = os.getenv("WEBHOOK_SECRET", "quantdinger-webhook-secret")
             import hashlib
             webhook_key = hashlib.sha256(

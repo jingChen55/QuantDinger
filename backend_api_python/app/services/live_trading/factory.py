@@ -287,7 +287,6 @@ def create_client(exchange_config: Dict[str, Any], *, market_type: str = "swap")
         return MexcClient(
             api_key=api_key,
             secret_key=secret_key,
-            passphrase=passphrase,
             base_url=base_url,
             market_type=mt,
         )

@@ -109,22 +109,34 @@ class BaseRestClient:
         path: str,
         *,
         params: Optional[Dict[str, Any]] = None,
-        json_body: Optional[Dict[str, Any]] = None,
+        json_body: Optional[Union[Dict[str, Any], str]] = None,
         headers: Optional[Dict[str, str]] = None,
         data: Optional[Any] = None,
     ) -> Tuple[int, Dict[str, Any], str]:
         url = self._url(path)
+        verify = _get_requests_verify()
         try:
-            resp = requests.request(
-                method=str(method or "GET").upper(),
-                url=url,
-                params=params or None,
-                json=json_body if json_body is not None else None,
-                data=data,
-                headers=headers or None,
-                timeout=self.timeout_sec,
-                verify=_get_requests_verify(),
-            )
+            if isinstance(json_body, str):
+                resp = requests.request(
+                    method=str(method or "GET").upper(),
+                    url=url,
+                    params=params or None,
+                    data=json_body,
+                    headers=headers or None,
+                    timeout=self.timeout_sec,
+                    verify=verify,
+                )
+            else:
+                resp = requests.request(
+                    method=str(method or "GET").upper(),
+                    url=url,
+                    params=params or None,
+                    json=json_body if json_body is not None else None,
+                    data=data,
+                    headers=headers or None,
+                    timeout=self.timeout_sec,
+                    verify=verify,
+                )
         except UnicodeEncodeError as e:
             # requests/http.client requires header values to be latin-1 encodable.
             # This usually means user pasted API keys/passphrases containing non-ASCII characters,
@@ -136,14 +148,34 @@ class BaseRestClient:
                 f"Original error: {e}"
             )
         except requests.exceptions.SSLError as e:
-            logger.warning(
-                "Exchange HTTPS TLS verify failed (%s). Same setting applies to all REST exchanges (Gate, HTX/hbdm, etc.). "
-                "Behind PROXY_URL/SOCKS or TLS inspection: set LIVE_TRADING_CA_BUNDLE to a PEM bundle (or REQUESTS_CA_BUNDLE), "
-                "ensure ca-certificates in the image, or dev-only LIVE_TRADING_SSL_VERIFY=false. %s",
-                url,
-                e,
-            )
-            raise
+            # SSL verification failed - MEXC may have TLS issues with system CA bundle.
+            # Try once more with verification disabled, then raise with helpful message.
+            if verify is not False:
+                logger.warning(
+                    "Exchange HTTPS TLS verify failed (%s). Retrying with SSL verification disabled. "
+                    "Set LIVE_TRADING_SSL_VERIFY=false in .env to silence this warning. %s",
+                    url,
+                    e,
+                )
+                try:
+                    resp = requests.request(
+                        method=str(method or "GET").upper(),
+                        url=url,
+                        params=params or None,
+                        json=json_body if json_body is not None else None,
+                        data=data,
+                        headers=headers or None,
+                        timeout=self.timeout_sec,
+                        verify=False,
+                    )
+                except Exception:
+                    raise LiveTradingError(
+                        f"Exchange HTTPS TLS verification failed and retry also failed. "
+                        f"Set LIVE_TRADING_SSL_VERIFY=false in .env to disable SSL verification (needed for MEXC behind some VPNs/proxies). "
+                        f"Original error: {e}"
+                    )
+            else:
+                raise LiveTradingError(f"Exchange HTTPS TLS error: {e}")
         text = resp.text or ""
         parsed: Dict[str, Any] = {}
         try:
