@@ -247,26 +247,19 @@ class MexcClient(BaseRestClient):
     def open_short(self, symbol: str, quantity: float, price: str) -> LiveOrderResult:
         return self._open_order(symbol, quantity, "sell", price)
 
-    def _open_order(self, symbol: str, quantity: str, side: str, price: str) -> LiveOrderResult:
+    def _open_order(self, symbol: str, quantity: float, side: str, price: float, leverage: int = 500) -> LiveOrderResult:
         contract_code = to_mexc_swap_symbol(symbol) if self.market_type == "swap" else to_mexc_symbol(symbol)
-        qty_str = self._dec_str(self._to_dec(quantity))
+        qty_str = self._dec_str(self._to_dec(quantity*10000))
+        min_qty = 0.0
 
         try:
-            inst_info = self._get_instrument_info(contract_code)
-            if inst_info:
-                min_qty = float(inst_info.get("min_quantity", inst_info.get("minVol", 0)))
-                if quantity < min_qty:
-                    qty_str = self._dec_str(self._to_dec(min_qty))
-
             if self.market_type == "swap":
                 path = "/api/v1/private/order/create"
-                
                 side_map = {
                     "buy": 1,   # open long
                     "sell": 3,  # open short
                 }
                 order_side = side_map.get(side.lower(), 1)
-                leverage = int(trading_config.get('leverage', 20)) if 'trading_config' in dir() else 20
                 
                 body = {
                     "symbol": contract_code,
@@ -279,7 +272,13 @@ class MexcClient(BaseRestClient):
                     "externalOid": f"qd_{int(time.time() * 1000)}",
                 }
                 if price:
-                    body["price"] = self._dec_str(self._to_dec(price))
+                    # Format price as integer if no decimals needed, otherwise use proper decimal string
+                    price_dec = self._to_dec(price)
+                    if price_dec == price_dec.to_integral_value():
+                        body["price"] = str(int(price_dec))
+                    else:
+                        body["price"] = self._dec_str(price_dec)
+
             else:
                 path = "/api/v3/order"
                 body = {
@@ -289,10 +288,8 @@ class MexcClient(BaseRestClient):
                     "quantity": qty_str,
                     "newClientOrderId": f"qd_{int(time.time() * 1000)}",
                 }
-                if price:
-                    body["price"] = self._dec_str(self._to_dec(price))
-                    body["timeInForce"] = "GTC"
-
+            
+            body["price"] =price
             body_json = json.dumps(body)
             timestamp = str(int(time.time() * 1000))
 
@@ -356,7 +353,11 @@ class MexcClient(BaseRestClient):
                     "externalOid": f"qd_{int(time.time() * 1000)}",
                 }
                 if price:
-                    body["price"] = self._dec_str(self._to_dec(price))
+                    price_dec = self._to_dec(price)
+                    if price_dec == price_dec.to_integral_value():
+                        body["price"] = str(int(price_dec))
+                    else:
+                        body["price"] = self._dec_str(price_dec)
             else:
                 path = "/api/v3/order"
                 body = {
@@ -367,7 +368,11 @@ class MexcClient(BaseRestClient):
                     "newClientOrderId": f"qd_{int(time.time() * 1000)}",
                 }
                 if price:
-                    body["price"] = self._dec_str(self._to_dec(price))
+                    price_dec = self._to_dec(price)
+                    if price_dec == price_dec.to_integral_value():
+                        body["price"] = str(int(price_dec))
+                    else:
+                        body["price"] = self._dec_str(price_dec)
                     body["timeInForce"] = "GTC"
 
             headers = self._headers(path, json.dumps(body))
