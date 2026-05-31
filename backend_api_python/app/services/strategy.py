@@ -787,7 +787,7 @@ class StrategyService:
                 self._display_item('takeProfitPct', 'trading-bot.martingale.avgEntryTakeProfit', self._to_float(params.get('takeProfitPct'), 0.0), 'percent'),
                 self._display_item('stopLossPct', 'trading-bot.martingale.avgEntryStopLoss', self._to_float(params.get('stopLossPct'), 0.0), 'percent'),
                 self._display_item('direction', 'trading-bot.martingale.direction', params.get('direction') or 'long', 'enum', f"trading-bot.martingale.{params.get('direction') or 'long'}"),
-                self._display_item('waterfallProtection', 'trading-bot.martingale.waterfallProtection', bool(params.get('waterfallProtection', True)), 'boolean'),
+                self._display_item('waterfallProtection', 'trading-bot.martingale.waterfallProtection', bool(params.get('waterfallProtection')), 'boolean'),
                 self._display_item('waterfallDropPct', 'trading-bot.martingale.waterfallDropPct', self._to_float(params.get('waterfallDropPct'), 0.04) * 100, 'percent'),
             ]
             if self._to_float(tc.get('max_daily_loss'), 0.0) > 0:
@@ -797,6 +797,7 @@ class StrategyService:
             return display
 
         if bot_type == 'grid':
+            display['capital_label_key'] = 'trading-bot.grid.totalBudget'
             display['strategy_params'] = [
                 self._display_item('upperPrice', 'trading-bot.grid.upperPrice', self._to_float(params.get('upperPrice'), 0.0), 'usdt'),
                 self._display_item('lowerPrice', 'trading-bot.grid.lowerPrice', self._to_float(params.get('lowerPrice'), 0.0), 'usdt'),
@@ -805,9 +806,9 @@ class StrategyService:
                 self._display_item('gridMode', 'trading-bot.grid.mode', params.get('gridMode') or 'arithmetic', 'enum', f"trading-bot.grid.{params.get('gridMode') or 'arithmetic'}"),
                 self._display_item('gridDirection', 'trading-bot.grid.direction', params.get('gridDirection') or 'neutral', 'enum', f"trading-bot.grid.{params.get('gridDirection') or 'neutral'}"),
                 self._display_item('orderMode', 'trading-bot.grid.orderType', params.get('orderMode') or 'maker', 'enum', 'trading-bot.grid.limitOrder' if (params.get('orderMode') or 'maker') == 'maker' else 'trading-bot.grid.marketOrder'),
-                self._display_item('adaptiveBounds', 'trading-bot.grid.adaptiveBounds', bool(params.get('adaptiveBounds', True)), 'boolean'),
+                self._display_item('adaptiveBounds', 'trading-bot.grid.adaptiveBounds', bool(params.get('adaptiveBounds')), 'boolean'),
                 self._display_item('adaptiveAtrMult', 'trading-bot.grid.adaptiveAtrMult', self._to_float(params.get('adaptiveAtrMult'), 2.0), 'number'),
-                self._display_item('waterfallProtection', 'trading-bot.grid.waterfallProtection', bool(params.get('waterfallProtection', True)), 'boolean'),
+                self._display_item('waterfallProtection', 'trading-bot.grid.waterfallProtection', bool(params.get('waterfallProtection')), 'boolean'),
                 self._display_item('waterfallDropPct', 'trading-bot.grid.waterfallDropPct', self._to_float(params.get('waterfallDropPct'), 0.03) * 100, 'percent'),
             ]
         elif bot_type == 'trend':

@@ -33,6 +33,7 @@ from app.services.live_trading.kraken_futures import KrakenFuturesClient
 from app.services.live_trading.kucoin import KucoinSpotClient
 from app.services.live_trading.kucoin import KucoinFuturesClient
 from app.services.live_trading.gate import GateSpotClient, GateUsdtFuturesClient
+from app.services.live_trading.mexc import MexcClient
 from app.services.live_trading.deepcoin import DeepcoinClient
 from app.services.live_trading.htx import HtxClient
 from app.services.live_trading.symbols import to_okx_swap_inst_id
@@ -658,6 +659,31 @@ class PendingOrderWorker:
                                         exch_entry_price.setdefault(sym, {"long": 0.0, "short": 0.0})[side] = ep
                                 except Exception:
                                     pass
+
+                    elif isinstance(client, MexcClient) and market_type == "swap":
+                        resp = client.get_positions()
+                        data = (resp if isinstance(resp, list) else []) or []
+                        for p in data:
+                            if not isinstance(p, dict):
+                                continue
+                            sym = str(p.get("contract_code") or "").strip()
+                            if not sym:
+                                continue
+                            try:
+                                qty_ct = float(p.get("volume") or 0.0)
+                            except Exception:
+                                qty_ct = 0.0
+                            if abs(qty_ct) <= 0:
+                                continue
+                            side = "long" if qty_ct > 0 else "short"
+                            qty_base = abs(qty_ct) * 0.0001
+                            exch_size.setdefault(sym, {"long": 0.0, "short": 0.0})[side] = float(qty_base)
+                            try:
+                                ep = float(p.get("open_avg_price") or 0.0)
+                                if ep > 0:
+                                    exch_entry_price.setdefault(sym, {"long": 0.0, "short": 0.0})[side] = ep
+                            except Exception:
+                                pass
 
                     elif MT5Client is not None and isinstance(client, MT5Client):
                         # MT5 forex positions

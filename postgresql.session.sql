@@ -1,0 +1,1 @@
+SELECT id, trading_config FROM qd_strategies_trading;

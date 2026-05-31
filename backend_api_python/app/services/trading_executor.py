@@ -1013,6 +1013,14 @@ class TradingExecutor:
         def _set_db_stopped_best_effort(reason: str) -> None:
             """Best-effort: mark strategy stopped to avoid zombie 'running' status."""
             try:
+                import urllib.request, json, os
+                _url = os.getenv('DBG_URL', '')
+                if _url:
+                    data = json.dumps({'session':'bot-auto-stop','type':'H1-stop-called','strategy_id':strategy_id,'reason':reason[:200],'ts':__import__('time').time()}).encode()
+                    req = urllib.request.Request(_url+'/log', data=data, headers={'Content-Type':'application/json'}, method='POST')
+                    urllib.request.urlopen(req, timeout=2)
+            except Exception: pass
+            try:
                 with get_db_connection() as db:
                     cur = db.cursor()
                     cur.execute(
@@ -1030,6 +1038,14 @@ class TradingExecutor:
                 pass
 
         def _is_fatal_error(err: Exception, msg: str) -> bool:
+            try:
+                import urllib.request, json, os
+                _url = os.getenv('DBG_URL', '')
+                if _url:
+                    data = json.dumps({'session':'bot-auto-stop','type':'H1-fatal-check','strategy_id':strategy_id,'err_type':type(err).__name__,'msg':str(msg)[:200],'ts':__import__('time').time()}).encode()
+                    req = urllib.request.Request(_url+'/log', data=data, headers={'Content-Type':'application/json'}, method='POST')
+                    urllib.request.urlopen(req, timeout=2)
+            except Exception: pass
             # Config errors from data sources should stop immediately.
             if isinstance(err, UnsupportedMarketError):
                 return True
@@ -1078,7 +1094,23 @@ class TradingExecutor:
                 return
             
             stype = strategy.get('strategy_type') or ''
+            try:
+                import urllib.request, json, os
+                _url = os.getenv('DBG_URL', '')
+                if _url:
+                    data = json.dumps({'session':'bot-auto-stop','type':'H3-strategy-type','strategy_id':strategy_id,'stype':stype,'ts':__import__('time').time()}).encode()
+                    req = urllib.request.Request(_url+'/log', data=data, headers={'Content-Type':'application/json'}, method='POST')
+                    urllib.request.urlopen(req, timeout=2)
+            except Exception: pass
             if stype not in ('IndicatorStrategy', 'ScriptStrategy'):
+                try:
+                    import urllib.request, json, os
+                    _url = os.getenv('DBG_URL', '')
+                    if _url:
+                        data = json.dumps({'session':'bot-auto-stop','type':'H3-return-unsupported','strategy_id':strategy_id,'stype':stype,'ts':__import__('time').time()}).encode()
+                        req = urllib.request.Request(_url+'/log', data=data, headers={'Content-Type':'application/json'}, method='POST')
+                        urllib.request.urlopen(req, timeout=2)
+                except Exception: pass
                 logger.error(f"Strategy {strategy_id} has unsupported strategy_type for realtime execution: {stype}")
                 return
             is_script = stype == 'ScriptStrategy'
@@ -1216,9 +1248,25 @@ class TradingExecutor:
                 indicator_config = strategy['indicator_config']
                 indicator_id = indicator_config.get('indicator_id')
                 indicator_code = indicator_config.get('indicator_code', '')
+                try:
+                    import urllib.request, json, os
+                    _url = os.getenv('DBG_URL', '')
+                    if _url:
+                        data = json.dumps({'session':'bot-auto-stop','type':'H5-indicator-check','strategy_id':strategy_id,'indicator_id':str(indicator_id),'indicator_code_len':len(indicator_code) if indicator_code else 0,'ts':__import__('time').time()}).encode()
+                        req = urllib.request.Request(_url+'/log', data=data, headers={'Content-Type':'application/json'}, method='POST')
+                        urllib.request.urlopen(req, timeout=2)
+                except Exception: pass
                 if not indicator_code and indicator_id:
                     indicator_code = self._get_indicator_code_from_db(indicator_id)
                 if not indicator_code:
+                    try:
+                        import urllib.request, json, os
+                        _url = os.getenv('DBG_URL', '')
+                        if _url:
+                            data = json.dumps({'session':'bot-auto-stop','type':'H5-return-empty-code','strategy_id':strategy_id,'ts':__import__('time').time()}).encode()
+                            req = urllib.request.Request(_url+'/log', data=data, headers={'Content-Type':'application/json'}, method='POST')
+                            urllib.request.urlopen(req, timeout=2)
+                    except Exception: pass
                     logger.error(f"Strategy {strategy_id} indicator_code is empty")
                     return
                 if not isinstance(indicator_code, str):
@@ -1281,7 +1329,23 @@ class TradingExecutor:
                 symbol, timeframe, limit=history_limit, market_category=market_category,
                 exchange_id=kline_exchange_id, market_type=kline_market_type,
             )
+            try:
+                import urllib.request, json, os
+                _url = os.getenv('DBG_URL', '')
+                if _url:
+                    data = json.dumps({'session':'bot-auto-stop','type':'H2-kline-result','strategy_id':strategy_id,'kline_count':len(klines) if klines else 0,'symbol':symbol,'ts':__import__('time').time()}).encode()
+                    req = urllib.request.Request(_url+'/log', data=data, headers={'Content-Type':'application/json'}, method='POST')
+                    urllib.request.urlopen(req, timeout=2)
+            except Exception: pass
             if not klines or len(klines) < 2:
+                try:
+                    import urllib.request, json, os
+                    _url = os.getenv('DBG_URL', '')
+                    if _url:
+                        data = json.dumps({'session':'bot-auto-stop','type':'H2-return-no-klines','strategy_id':strategy_id,'kline_count':len(klines) if klines else 0,'symbol':symbol,'ts':__import__('time').time()}).encode()
+                        req = urllib.request.Request(_url+'/log', data=data, headers={'Content-Type':'application/json'}, method='POST')
+                        urllib.request.urlopen(req, timeout=2)
+                except Exception: pass
                 logger.error(f"Strategy {strategy_id} failed to fetch K-lines")
                 return
             logger.info(rf'Strategy {strategy_id} history kline number: {len(klines)}')
