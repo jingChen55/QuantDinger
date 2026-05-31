@@ -11,7 +11,6 @@ Signing:
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import hmac
 import json
@@ -19,8 +18,6 @@ import time
 import logging
 from decimal import Decimal, ROUND_DOWN
 from typing import Any, Dict, Optional, Tuple
-
-import requests
 
 logger = logging.getLogger(__name__)
 
